@@ -1,25 +1,90 @@
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import "./App.css";
+import "./animations.css";
+import ContactForm from "./components/ContactForm/ContactForm";
+import ContactList from "./components/ContactList/ConatctList";
+import Filter from "./components/Filter/Filter";
+import Layout from "./components/Layout/Layout";
+import Alert from "./components/Alert/Alert";
+import { CSSTransition } from "react-transition-group";
+import { connect } from "react-redux";
+import { addContact, fetchContacts } from "./redux/operations";
+import { v4 } from "uuid";
+import contactsSelectors from "./redux/contactsSelectors";
+import Spinner from "./components/Spinner";
+class App extends React.Component {
+  state = {
+    alert: false,
+  };
+  componentDidMount() {
+    this.props.fetchContacts();
+  }
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+  deleteAlert = () => [
+    setTimeout(() => {
+      this.setState({
+        alert: false,
+      });
+    }, 3000),
+  ];
+  setAlert = () => {
+    this.setState(
+      {
+        alert: true,
+      },
+      () => this.deleteAlert()
+    );
+  };
+  handleSubmit = (contact) => {
+    const newContact = {
+      name: contact.name,
+      number: contact.number,
+      id: v4(),
+    };
+    if (
+      this.props.contacts.find(
+        (el) => el.name === newContact.name && el.number === newContact.number
+      )
+    ) {
+      this.setAlert();
+    } else {
+      this.props.addContact(newContact);
+    }
+  };
+  render() {
+    const { alert } = this.state;
+    const { loading, error } = this.props;
+    return (
+      <>
+        <Layout title="Phonebook" />
+        <ContactForm submit={this.handleSubmit} />
+        <Filter />
+        <CSSTransition
+          classNames="fade"
+          timeout={250}
+          in={this.props.contacts.length > 0}
+          unmountOnExit
         >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+          <ContactList list={this.props.contacts} />
+        </CSSTransition>
+        <Alert alert={alert} />
+        {loading && <Spinner />}
+        {error !== null && (
+          <p style={{ color: "red" }}>Something went wrong...</p>
+        )}
+      </>
+    );
+  }
 }
-
-export default App;
+const mapStateToProps = (state) => {
+  return {
+    contacts: contactsSelectors.getVisibleContacts(state),
+    loading: contactsSelectors.getLoading(state),
+    error: contactsSelectors.getErrors(state),
+  };
+};
+const mapDispatchToProps = {
+  addContact: addContact,
+  fetchContacts: fetchContacts,
+};
+export default connect(mapStateToProps, mapDispatchToProps)(App);
